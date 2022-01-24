@@ -7,6 +7,7 @@ add_subdirectory(deps/polyscope)
 
 # == Srcs
 set(SRCS src/main.cpp
+              src/SphericalOMT.cpp
 )
 add_executable(SphericalOMT "${SRCS}")
 
