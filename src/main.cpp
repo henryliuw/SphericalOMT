@@ -14,6 +14,7 @@ int epochs;
 double lambda;
 int count = 0;
 SphericalOMT* omt_ptr;
+std::pair<Eigen::MatrixXd, Eigen::MatrixXd> mesh_pair;
 
 void printArea(Eigen::VectorXd areas) {
     std::cout << "np.array([";
@@ -34,8 +35,10 @@ void functionCallback() { //IMGUi
                 std::cout << "epoch: " << count << std::endl;
             }
         }
-        psMesh->updateVertexPositions(omt_ptr->mapBack());
+        auto result = omt_ptr->mapBack();
+        psMesh->updateVertexPositions(result);
         polyscope::requestRedraw();
+        omt_ptr->measureDual(result, mesh_pair.second);
     }
     if (ImGui::Button("print area distortion")) {
         //auto result = SphereTriangulation(omt_ptr->mapBack());
@@ -70,7 +73,7 @@ int main(int argc, char** argv) {
     //SphericalOMT omt(sph_mat);
 
     // bunny test
-    auto mesh_pair = readFile("../input/bunny_conformal.obj");
+    mesh_pair = readFile("../input/bunny_conformal.obj");
     SphericalOMT omt(mesh_pair.first);
     omt.setNu("../input/bunny_area.txt");
     // set global ptr

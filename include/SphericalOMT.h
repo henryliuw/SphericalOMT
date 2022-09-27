@@ -34,7 +34,7 @@
 typedef CGAL::Simple_cartesian<double>             Kernel;
 typedef Kernel::Point_3                            Point;
 typedef CGAL::Surface_mesh<Point>                  Mesh;
-typedef CGAL::Exact_predicates_exact_constructions_kernel K;
+typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 typedef CGAL::Regular_triangulation_2<K> RT;
 typedef CGAL::Regular_triangulation_adaptation_traits_2<RT>         AT;
 typedef CGAL::Regular_triangulation_degeneracy_removal_policy_2<RT> DRP;
@@ -50,8 +50,8 @@ std::pair<Eigen::MatrixXd, Eigen::VectorXd> SphereTriangulation(Eigen::MatrixXd 
 
 struct HASH{
     size_t operator()(const K::Point_2& p) const {
-        double x = (double)p.x().exact();
-        double y = (double)p.y().exact();
+        double x = (double)p.x();
+        double y = (double)p.y();
         std::size_t hi = std::hash<double>{}(x);
         std::size_t hj = std::hash<double>{}(y);
         return hi ^ (hj << 32); //maybe too big ? i dont know
@@ -111,5 +111,6 @@ public:
     Eigen::MatrixXd mapBack();
     void setNu(std::string filepath);
     void printDistortion();
+    void measureDual(Eigen::MatrixXd vertices, Eigen::MatrixXd faces);
 	//void gradient(); 
 };

@@ -57,8 +57,8 @@ inline K::Point_2 SphericalOMT::sgProj(std::array<double, 3> vertex_position) { 
 }
 
 inline std::array<double, 3> SphericalOMT::isgProj(K::Point_2 point2) {
-    double x = (double) point2.x().exact();
-    double y = (double) point2.y().exact();
+    double x = (double) point2.x();
+    double y = (double) point2.y();
     double A = 1 + x * x + y * y;
     return std::array<double, 3>{ 2*x / A, 2 * y / A, (A - 2) / A  };
 };
@@ -94,7 +94,7 @@ bool SphericalOMT::constructDiagram(bool verbose) {
             const auto dsx = source.x();
             const auto dsy = source.y();
             const auto& dir = dray->direction();
-            auto norm = sqrt((double)(dir.dx() * dir.dx() + dir.dy() * dir.dy()).exact());
+            auto norm = sqrt((double)(dir.dx() * dir.dx() + dir.dy() * dir.dy()));
             const auto tpoint = K::Point_2(dsx + RAY_LENGTH * dir.dx() / norm, dsy + RAY_LENGTH * dir.dy() / norm);
             if (outgoing)
                 return K::Segment_2(
@@ -231,7 +231,7 @@ Eigen::SparseMatrix<double> SphericalOMT::hessByEdge()
         K::Weighted_point_2 pi = ei->up()->point();
         K::Weighted_point_2 pj = ei->down()->point();
         int i = point2idx[K::Point_2(pi.x(), pi.y())], j = point2idx[K::Point_2(pj.x(), pj.y())];
-        double length = sqrt((double)((pi.x() - pj.x()) * (pi.x() - pj.x()) + (pi.y() - pj.y()) * (pi.y() - pj.y())).exact());
+        double length = sqrt((double)((pi.x() - pj.x()) * (pi.x() - pj.x()) + (pi.y() - pj.y()) * (pi.y() - pj.y())));
         double entry = lineIntegral(ei) / length;
         entries.push_back(Eigen::Triplet<double>(i, j, -entry));
         entries.push_back(Eigen::Triplet<double>(j, i, -entry));
@@ -299,7 +299,7 @@ double SphericalOMT::hij(int i, int j) {
             K::FT inner_prod = seg_x * pij_x + seg_y * pij_y;
             if (abs(inner_prod) < _EPS_OMT)
             {
-                double length = sqrt( (double)((pij_x * pij_x+pij_y * pij_y).exact()));
+                double length = sqrt( (double)((pij_x * pij_x+pij_y * pij_y)));
                 double denom = lineIntegral(seg);
                 return  denom / length;
             }
@@ -314,7 +314,7 @@ double SphericalOMT::hij(int i, int j) {
 
 double SphericalOMT::lineIntegral(K::Segment_2 seg) {
     // perform a closed form for computing \int_{x_0}^{x_1} \mu(X, Y) \sqrt(1+k^2) dx where \mu(X,Y) = 4 / (1+X^2+Y^2)^2
-    double x0 = (double)seg.source().x().exact(), y0 = (double)seg.source().y().exact(), x1 = (double)seg.target().x().exact(), y1 = (double)seg.target().y().exact();
+    double x0 = (double)seg.source().x(), y0 = (double)seg.source().y(), x1 = (double)seg.target().x(), y1 = (double)seg.target().y();
     // compute coeff for y = kx+b
     double k = (y1 - y0) / (x1 - x0);
     double b = y0 - k * x0;
@@ -341,7 +341,7 @@ double SphericalOMT::lineIntegral(VD::Edge_iterator ei) {
     if (ei->has_source() && ei->has_target()){
         p1 = ei->source()->point();
         p2 = ei->target()->point();
-        x0 = (double)p1.x().exact(), y0 = (double)p1.y().exact(), x1 = (double)p2.x().exact(), y1 = (double)p2.y().exact();
+        x0 = (double)p1.x(), y0 = (double)p1.y(), x1 = (double)p2.x(), y1 = (double)p2.y();
     }
     else
     {
@@ -350,12 +350,12 @@ double SphericalOMT::lineIntegral(VD::Edge_iterator ei) {
         const CGAL::Object seg_dual = vd.dual().dual(ei->dual());
         const K::Ray_2* dray = CGAL::object_cast<K::Ray_2>(&seg_dual);
         const auto& source = dray->source();
-        x0 = (double)source.x().exact();
-        y0 = (double)source.y().exact();
+        x0 = (double)source.x();
+        y0 = (double)source.y();
         const auto& dir = dray->direction();
-        auto norm = sqrt((double)(dir.dx() * dir.dx() + dir.dy() * dir.dy()).exact());
-        x1 = x0 + RAY_LENGTH * (double)dir.dx().exact() / norm;
-        y1 = y0 + RAY_LENGTH * (double)dir.dy().exact() / norm;
+        auto norm = sqrt((double)(dir.dx() * dir.dx() + dir.dy() * dir.dy()));
+        x1 = x0 + RAY_LENGTH * (double)dir.dx() / norm;
+        y1 = y0 + RAY_LENGTH * (double)dir.dy() / norm;
     }
     // perform a closed form for computing \int_{x_0}^{x_1} \mu(X, Y) \sqrt(1+k^2) dx where \mu(X,Y) = 4 / (1+X^2+Y^2)^2
     // compute coeff for y = kx+b
@@ -380,7 +380,7 @@ double SphericalOMT::lineIntegral(VD::Edge_iterator ei) {
 
 double SphericalOMT::curvatureIntegral(K::Segment_2 seg) {
     // perform a closed form for computing \int_si k_g ds
-    double x0 = (double)seg.source().x().exact(), y0 = (double)seg.source().y().exact(), x1 = (double)seg.target().x().exact(), y1 = (double)seg.target().y().exact();
+    double x0 = (double)seg.source().x(), y0 = (double)seg.source().y(), x1 = (double)seg.target().x(), y1 = (double)seg.target().y();
     // compute coeff for y = kx+b
     double k = (y1 - y0) / (x1 - x0);
     double b = y0 - k * x0;
@@ -457,9 +457,9 @@ double SphericalOMT::step(double lbda) {
     //std::cout << "Wh:\n" << wh << std::endl;
     //std::cout << "dh\n" << dh << std::endl;
     //std::cout << "h:\n" << h << std::endl;
-    std::cout << "norm of grad:" << grad.cwiseAbs().minCoeff() << std::endl;
+    std::cout << "max error:" << grad.cwiseAbs().maxCoeff() << std::endl;
     //std::cout << rt.number_of_hidden_vertices() << std::endl;
-    return grad.cwiseAbs().minCoeff();
+    return grad.cwiseAbs().maxCoeff();
 }
 
 
@@ -542,6 +542,34 @@ void SphericalOMT::printDistortion() {
     std::cout << "])" << std::endl;
 };
 
+
+void SphericalOMT::measureDual(Eigen::MatrixXd vertices, Eigen::MatrixXd faces) {
+    auto faceArea = [&](int i) {
+        int v1 = faces(i, 0), v2 = faces(i, 1), v3 = faces(i, 2);
+        double a1 = vertices(v2, 0) - vertices(v1, 0), a2 = vertices(v2, 1) - vertices(v1, 1), a3 = vertices(v2, 2) - vertices(v1, 2);
+        double b1 = vertices(v3, 0) - vertices(v1, 0), b2 = vertices(v3, 1) - vertices(v1, 1), b3 = vertices(v3, 2) - vertices(v1, 2);
+        double result = sqrt((a2 * b3 - a3 * b2) * (a2 * b3 - a3 * b2) + (a1 * b3 - a3 * b1) * (a1 * b3 - a3 * b1) + (a1 * b2 - a2 * b1) * (a1 * b2 - a2 * b1));
+        return result/2;
+    };
+    Eigen::ArrayXd dual_area(vertices.rows());
+    dual_area.setZero();
+    for (int i = 0; i != faces.rows(); i++)
+    {
+        int v1 = faces(i, 0), v2 = faces(i, 1), v3 = faces(i, 2);
+        double area = faceArea(i)/3;
+        dual_area(v1) += area;
+        dual_area(v2) += area;
+        dual_area(v3) += area;
+    }
+    Eigen::ArrayXd area_distortion = dual_area / nu.array();
+    std::cout << dual_area.sum() << std::endl;
+    std::cout << "local distortion mean:" << area_distortion.mean() << std::endl;
+    std::cout << "local distortion std:" << sqrt((area_distortion - area_distortion.mean()).square().sum() / area_distortion.size()) << std::endl;
+    std::cout << "relative error:" << (dual_area - nu.array()).abs().sum() / 4 / _PI << std::endl;
+    std::ofstream myfile("distortion.txt");
+    myfile << area_distortion << std::endl;
+    myfile.close();
+};
 
 // some utils function
 std::pair<Eigen::MatrixXd, Eigen::MatrixXd> readFile(std::string file)
