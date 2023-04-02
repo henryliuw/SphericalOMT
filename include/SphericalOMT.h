@@ -23,7 +23,7 @@
 #include <CGAL/Delaunay_triangulation_on_sphere_traits_2.h>
 #include <CGAL/Delaunay_triangulation_on_sphere_2.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-
+#include <chrono>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -106,11 +106,12 @@ public:
 	void printPoly(CGAL::Polygon_2<K> pgon);
     void printPolys();
     void debug();
-    double step(double lbda); // perform a single step optimization and return the norm of gradient after optimization
+    double step(double & lbda); // perform a single step optimization and return the norm of gradient after optimization
     Eigen::MatrixXi faceMat(); // return the connectivity matrix for testing
     Eigen::MatrixXd mapBack();
-    void setNu(std::string filepath);
+    void setNu(std::vector<std::array<double, 3>> pPos, std::vector<std::vector<size_t>> fInd);
     void printDistortion();
     void measureDual(Eigen::MatrixXd vertices, Eigen::MatrixXd faces);
+    Eigen::MatrixXd computeAll(double eps); // compute everything and record time
 	//void gradient(); 
 };

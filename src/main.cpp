@@ -7,7 +7,7 @@
 #include "polyscope/polyscope.h"
 #include "polyscope/surface_mesh.h"
 #include "imgui.h"
-
+#include "happly.h"
 
 polyscope::SurfaceMesh* psMesh;
 int epochs;
@@ -55,6 +55,46 @@ void functionCallback() { //IMGUi
     }
 }
 
+void readFiles(std::string filename, std::vector<std::array<double, 3>>& vPos, std::vector<std::array<double, 3>>& pPos, std::vector<std::vector<size_t>> & fInd)
+{
+    happly::PLYData plyIn(filename);
+
+    vPos = plyIn.getVertexPositions();
+    fInd = plyIn.getFaceIndices<size_t>();
+
+    std::vector<double> px = plyIn.getElement("vertex").getProperty<double>("px");
+    std::vector<double> py = plyIn.getElement("vertex").getProperty<double>("py");
+    std::vector<double> pz = plyIn.getElement("vertex").getProperty<double>("pz");
+    pPos.resize(vPos.size());
+    for (int i = 0; i != pPos.size(); i++)
+    {
+        pPos[i][0] = px[i];
+        pPos[i][1] = py[i]; // translate to view easier
+        pPos[i][2] = pz[i];
+    }
+}
+
+void writeFiles(std::string filenamein, std::string filenameout, Eigen::MatrixXd & pPos)
+{
+    happly::PLYData plyIn(filenamein);
+    happly::PLYData plyOut;
+    plyOut.addFaceIndices(plyIn.getFaceIndices<size_t>());
+    plyOut.addVertexPositions(plyIn.getVertexPositions());
+    plyOut.getElement("vertex").addProperty<unsigned char>("red", plyIn.getElement("vertex").getProperty<unsigned char>("red"));
+    plyOut.getElement("vertex").addProperty<unsigned char>("green", plyIn.getElement("vertex").getProperty<unsigned char>("green"));
+    plyOut.getElement("vertex").addProperty<unsigned char>("blue", plyIn.getElement("vertex").getProperty<unsigned char>("blue"));
+    std::vector<double> px, py, pz;
+    for (int i = 0; i != pPos.rows(); i++) {
+        px.push_back(pPos(i, 0));
+        py.push_back(pPos(i, 1));
+        pz.push_back(pPos(i, 2));
+    }
+    plyOut.getElement("vertex").addProperty<double>("px", px);
+    plyOut.getElement("vertex").addProperty<double>("py", py);
+    plyOut.getElement("vertex").addProperty<double>("pz", pz);
+    plyOut.write(filenameout);
+}
+
 int main(int argc, char** argv) {
     // easy test 
     //std::vector<std::array<double, 3>> vertex_positions = { {0, 0, -1}, {0, 1, 0}, {0.444444, 0.444444, 0.777778}, {0.666667, -0.666667, 0.333333}, {0.833333, 0.555555, -0.1} };
@@ -72,24 +112,47 @@ int main(int argc, char** argv) {
     //}
     //SphericalOMT omt(sph_mat);
 
+    // read images
+    std::string filein;
+    if (argc>=2)
+        filein = argv[1];
+    std::vector<std::array<double, 3>> vPos, pPos;
+    std::vector<std::vector<size_t>> fInd;
+    readFiles(filein, vPos, pPos, fInd);
+
     // bunny test
-    mesh_pair = readFile("../input/bunny_conformal.obj");
-    SphericalOMT omt(mesh_pair.first);
-    omt.setNu("../input/bunny_area.txt");
+    //mesh_pair = readFile("../input/bunny_conformal.obj");
+    SphericalOMT omt(pPos);
+    omt.setNu(vPos, fInd);
     // set global ptr
     omt_ptr = &omt;
+    
+    double eps = 1e-3;
+    if (argc >= 4)
+    {
+        std::string temp = argv[3];
+        eps = stod(temp);
+    }
 
+    // measure time and save
+    auto result = omt_ptr->computeAll(eps);
+    if (argc >= 3)
+    {
+        std::string fileout = argv[2];
+        writeFiles(filein, fileout, result);
+    }
+    
     //omt.debug();
     // 3D viewer
     polyscope::init();
     polyscope::state::userCallback = functionCallback;
     //polyscope::registerSurfaceMesh("original mesh", sph_mat, SphereTriangulation(sph_mat).first);
-    polyscope::registerSurfaceMesh("original mesh", mesh_pair.first,  mesh_pair.second);
+    polyscope::registerSurfaceMesh("original mesh", pPos,  fInd);
     //for (int i = 0; i != 10; i++)
     //    omt_ptr->step(1);
-    psMesh = polyscope::registerSurfaceMesh("new mesh", mesh_pair.first,  mesh_pair.second);
+    psMesh = polyscope::registerSurfaceMesh("new mesh", result,  fInd);
     //psMesh = polyscope::registerSurfaceMesh("new mesh", omt.mapBack(), SphereTriangulation(sph_mat).first);
     polyscope::show();
-
+    
     return 0;
 }

@@ -423,23 +423,43 @@ Eigen::VectorXd SphericalOMT::Wh() {
 
 
 void SphericalOMT::Nu(){
-    nu = Eigen::MatrixXd::Constant(size, 1, 4 * _PI / size);
+    nu = Eigen::MatrixXd::Zero(size, 1);
 };
 
-void SphericalOMT::setNu(std::string filepath){
-    //nu = Eigen::MatrixXd::Constant(size, 1, 4 * _PI / size);
-    double area;
-    std::ifstream myfile(filepath);
-    int i = 0;
-    if (myfile.is_open())
+void SphericalOMT::setNu(std::vector<std::array<double, 3>> pPos, std::vector<std::vector<size_t>> fInd){
+    const auto triArea = [&](int fi) -> double { // cross product face area
+        int v0 = fInd[fi][0], v1 = fInd[fi][1], v2 = fInd[fi][2];
+        double x1 = pPos[v1][0] - pPos[v0][0], y1 = pPos[v1][1] - pPos[v0][1], z1 = pPos[v1][2] - pPos[v0][2];
+        double x2 = pPos[v2][0] - pPos[v0][0], y2 = pPos[v2][1] - pPos[v0][1], z2 = pPos[v2][2] - pPos[v0][2];
+        double cross_x = (double)(y1 * z2 - y2 * z1);
+        double cross_y = (double)(x1 * z2 - x2 * z1);
+        double cross_z = (double)(x1 * y2 - x2 * y1);
+        return sqrt(cross_x * cross_x + cross_y * cross_y + cross_z * cross_z) * 0.5;
+    };
+    for (int i = 0; i != fInd.size(); i++)
     {
-        while ( myfile >> area )
-            nu(i++, 1) = area * 4 * _PI;
+        double tri_area = triArea(i)/3;
+        nu(fInd[i][0]) += tri_area;
+        nu(fInd[i][1]) += tri_area;
+        nu(fInd[i][2]) += tri_area;
     }
+    double total = nu.sum();
+    nu = nu.array() / total * 4 * _PI; // resize
+    std::cout << "target area sum:" << nu.sum();
+    //nu = Eigen::MatrixXd::Zero(size, 1, );
+    //nu = Eigen::MatrixXd::Constant(size, 1, 4 * _PI / size);
+    //double area;
+    //std::ifstream myfile(filepath);
+    //int i = 0;
+    //if (myfile.is_open())
+    //{
+    //    while ( myfile >> area )
+    //        nu(i++, 1) = area * 4 * _PI;
+    //}
     //std::cout << nu.sum() << std::endl;
 };
 
-double SphericalOMT::step(double lbda) {
+double SphericalOMT::step(double & lbda) {
     //std::cout << "hello convex function\n";
     Eigen::VectorXd wh = Wh();
     Eigen::VectorXd grad = wh - nu;
@@ -449,17 +469,28 @@ double SphericalOMT::step(double lbda) {
     Eigen::VectorXd dh = solver.solve(grad);
     setHeight(h - dh * lbda);
     while (!constructDiagram(false)) { // line search
-        //std::cout << "degenerate at lambda=" << lbda << std::endl;
+        std::cout << "degenerate at lambda=" << lbda << std::endl;
         lbda = lbda * 0.5;
         setHeight(h - dh * lbda);
     };
+    std::cout << "use lbdd=" << lbda << std::endl;
     h = h - dh * lbda;
+    if (lbda*4<1)
+        lbda *= 4;
+    else
+    {
+        if (lbda+0.1 < 1)
+        lbda += 0.1;
+    }
     //std::cout << "Wh:\n" << wh << std::endl;
     //std::cout << "dh\n" << dh << std::endl;
     //std::cout << "h:\n" << h << std::endl;
-    std::cout << "max error:" << grad.cwiseAbs().maxCoeff() << std::endl;
+    double total_error = grad.array().abs().sum();
+    //std::cout << "max error:" << grad.cwiseAbs().maxCoeff() << std::endl;
+    std::cout << "total error:" << total_error << std::endl;
     //std::cout << rt.number_of_hidden_vertices() << std::endl;
-    return grad.cwiseAbs().maxCoeff();
+    return total_error;
+    //return grad.cwiseAbs().maxCoeff();
 }
 
 
@@ -484,40 +515,44 @@ Eigen::MatrixXd SphericalOMT::mapBack() {
         CGAL::Polygon_2<K> pgon = polys[i];
         double total_x = 0, total_y = 0, total_z = 0;
         // average vertices center
-        for (CGAL::Polygon_2<K>::Vertex_iterator vi = pgon.vertices_begin(); vi != pgon.vertices_end(); ++vi) 
-        {
-            std::array<double, 3>  coordinates = isgProj(*vi);
-            total_x += coordinates[0];
-            total_y += coordinates[1];
-            total_z += coordinates[2];
-        }
-        double xc = total_x / pgon.size(), yc = total_y / pgon.size(), zc = total_z / pgon.size();
-        double length = sqrt(xc * xc + yc * yc + zc * zc);
-        // centroid
-        //double cx=0, cy=0, cz = 0;
-        //double Axy = 0;
-        //double Ayz = 0;
-        //for (CGAL::Polygon_2<K>::Edge_const_iterator edge = pgon.edges_begin(); edge != pgon.edges_end(); edge++)
+        //for (CGAL::Polygon_2<K>::Vertex_iterator vi = pgon.vertices_begin(); vi != pgon.vertices_end(); ++vi) 
         //{
-        //    // compute inner product
-        //    const K::Segment_2 seg = (K::Segment_2)(*edge);
-        //    std::array<double, 3> p1 = isgProj(seg.source());
-        //    std::array<double, 3> p2 = isgProj(seg.target());
-        //    double axy = (p1[0] * p2[1] - p2[0] * p1[1]);
-        //    double ayz = (p1[1] * p2[2] - p2[1] * p1[2]);
-        //    cx += (p1[0] + p2[0]) * axy;
-        //    cy += (p1[1] + p2[1]) * axy;
-        //    cz += (p1[2] + p2[2]) * ayz;
-        //    Axy += 0.5 * axy;
-        //    Ayz += 0.5 * ayz;
+        //    std::array<double, 3>  coordinates = isgProj(*vi);
+        //    total_x += coordinates[0];
+        //    total_y += coordinates[1];
+        //    total_z += coordinates[2];
         //}
-        //cx /= (6 * Axy);
-        //cy /= (6 * Axy);
-        //cz /= (6 * Ayz);
-        //double length = sqrt(cx * cx + cy * cy + cz * cz);
-        vertices_positions(i, 0) = xc / length;
-        vertices_positions(i, 1) = yc / length;
-        vertices_positions(i, 2) = zc / length;
+        //double xc = total_x / pgon.size(), yc = total_y / pgon.size(), zc = total_z / pgon.size();
+        //double length = sqrt(xc * xc + yc * yc + zc * zc);
+        // centroid
+        double cx=0, cy=0, cz = 0;
+        double Axy = 0;
+        double Ayz = 0;
+        for (CGAL::Polygon_2<K>::Edge_const_iterator edge = pgon.edges_begin(); edge != pgon.edges_end(); edge++)
+        {
+            // compute inner product
+            const K::Segment_2 seg = (K::Segment_2)(*edge);
+            std::array<double, 3> p1 = isgProj(seg.source());
+            std::array<double, 3> p2 = isgProj(seg.target());
+            double axy = (p1[0] * p2[1] - p2[0] * p1[1]);
+            double ayz = (p1[1] * p2[2] - p2[1] * p1[2]);
+            cx += (p1[0] + p2[0]) * axy;
+            cy += (p1[1] + p2[1]) * axy;
+            cz += (p1[2] + p2[2]) * ayz;
+            Axy += 0.5 * axy;
+            Ayz += 0.5 * ayz;
+        }
+        cx /= (6 * Axy);
+        cy /= (6 * Axy);
+        cz /= (6 * Ayz);
+        double length = sqrt(cx * cx + cy * cy + cz * cz);
+        vertices_positions(i, 0) = cx / length;
+        vertices_positions(i, 1) = cy / length;
+        vertices_positions(i, 2) = cz / length;
+
+        //vertices_positions(i, 0) = xc / length;
+        //vertices_positions(i, 1) = yc / length;
+        //vertices_positions(i, 2) = zc / length;
         //std::cout << i << std::endl;
         //std::cout << "average vertice:\t" << xc / lengthc << " " << yc / lengthc << " " << zc / lengthc << std::endl;
         //std::cout << "centroid\t\t:" << vertices_positions(i, 0) << " " << vertices_positions(i, 1) << " " << vertices_positions(i, 2) << std::endl;
@@ -628,4 +663,19 @@ std::pair<Eigen::MatrixXd, Eigen::VectorXd> SphereTriangulation(Eigen::MatrixXd 
         //std::cout << f->vertex(0)->point() << " | " << f->vertex(1)->point() << " | " << f->vertex(2)->point() << " | " << std::endl;
     }
     return std::make_pair(faces, face_areas);
+}
+
+Eigen::MatrixXd SphericalOMT::computeAll(double eps) {
+    auto begin = std::chrono::steady_clock::now();
+    double loss = 1;
+    double lbda = 1;
+    while (loss > eps)
+    {
+        loss = step(lbda);
+    }
+    auto result = mapBack();
+    auto end = std::chrono::steady_clock::now();;
+    std::chrono::duration<double> elapsed_seconds = end-begin;
+    std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+    return result;
 }
